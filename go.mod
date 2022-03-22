@@ -32,6 +32,7 @@ require (
 	github.com/jcmturner/gofork v1.0.0 // indirect
 	github.com/jmoiron/sqlx v1.2.1-0.20200615141059-0794cb1f47ee
 	github.com/jonboulle/clockwork v0.1.0
+	github.com/kr/text v0.2.0
 	github.com/lib/pq v1.2.0
 	github.com/m3db/prometheus_client_golang v0.8.1
 	github.com/m3db/prometheus_client_model v0.1.0 // indirect

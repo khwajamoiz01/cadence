@@ -601,7 +601,7 @@ func (d *domainCLIImpl) ListDomains(c *cli.Context) {
 		}
 
 		// page is full
-		RenderTable(os.Stdout, table, domainTableOptions(c))
+		Render(c, table, domainTableOptions(c))
 		if i == len(domains)-1 || !showNextPage() {
 			return
 		}
@@ -609,7 +609,7 @@ func (d *domainCLIImpl) ListDomains(c *cli.Context) {
 		currentPageSize = 0
 	}
 
-	RenderTable(os.Stdout, table, domainTableOptions(c))
+	Render(c, table, domainTableOptions(c))
 }
 
 func (d *domainCLIImpl) listDomains(

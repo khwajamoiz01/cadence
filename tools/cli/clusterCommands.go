@@ -21,7 +21,6 @@
 package cli
 
 import (
-	"os"
 	"sort"
 
 	"github.com/urfave/cli"
@@ -61,5 +60,5 @@ func GetSearchAttributes(c *cli.Context) {
 		table = append(table, SearchAttributesRow{Key: k, ValueType: v.String()})
 	}
 	sort.Sort(table)
-	RenderTable(os.Stdout, table, TableOptions{Color: true, Border: true})
+	Render(c, table, TableOptions{Color: true, Border: true})
 }

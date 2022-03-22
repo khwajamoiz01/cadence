@@ -1095,7 +1095,7 @@ func displayWorkflows(c *cli.Context, workflows []*types.WorkflowExecutionInfo) 
 		for _, workflow := range workflows {
 			table = append(table, newWorkflowRow(workflow))
 		}
-		RenderTable(os.Stdout, table, tableOptions)
+		Render(c, table, tableOptions)
 	}
 }
 

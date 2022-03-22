@@ -25,14 +25,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/urfave/cli"
 
 	"github.com/uber/cadence/common/types"
+)
+
+const (
+	formatTable = "table"
+	formatJSON  = "json"
 )
 
 var tableHeaderBlue = tablewriter.Colors{tablewriter.FgHiBlueColor}
@@ -54,21 +62,74 @@ type TableOptions struct {
 	PrintDateTime bool
 }
 
+// Render is an entry point for presentation layer. It uses --format flat to determine output format.
+func Render(c *cli.Context, data interface{}, opts TableOptions) (err error) {
+	defer func() {
+		if err != nil {
+			ErrorAndExit("failed to render", err)
+		}
+	}()
+
+	// For now always output to stdout
+	w := os.Stdout
+
+	switch format := c.String(FlagFormat); format {
+	case formatTable, "":
+		return RenderTable(w, data, opts)
+	case formatJSON:
+		return RenderJSON(w, data)
+	default:
+		return RenderTemplate(w, data, format)
+	}
+}
+
+// RenderTemplate uses golang text/template format to render data with user provided template
+func RenderTemplate(w io.Writer, data interface{}, formatTemplate string) error {
+	t, err := template.New("").Parse(formatTemplate + "\n")
+	if err != nil {
+		return fmt.Errorf("invalid template %q: %w", formatTemplate, err)
+	}
+
+	dataValue := reflect.ValueOf(data)
+	switch dataValue.Kind() {
+	case reflect.Struct:
+		return t.Execute(w, data)
+	case reflect.Slice:
+		for i := 0; i < dataValue.Len(); i++ {
+			if err := t.Execute(w, dataValue.Index(i).Interface()); err != nil {
+				return err
+			}
+		}
+	default:
+		return fmt.Errorf("value must be a struct or a slice, provided: %s", dataValue.Kind())
+
+	}
+
+	return nil
+}
+
+// RenderJSON renders given value in JSON format
+func RenderJSON(w io.Writer, data interface{}) error {
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(data)
+}
+
 // RenderTable is generic function for rendering a slice of structs as a table
-func RenderTable(w io.Writer, slice interface{}, opts TableOptions) {
+func RenderTable(w io.Writer, slice interface{}, opts TableOptions) error {
 	sliceValue := reflect.ValueOf(slice)
 	if sliceValue.Kind() != reflect.Slice {
-		panic(fmt.Errorf("table must be a slice, provided: %s", sliceValue.Kind()))
+		return fmt.Errorf("table must be a slice, provided: %s", sliceValue.Kind())
 	}
 
 	// No elements - nothing to render
 	if sliceValue.Len() == 0 {
-		return
+		return nil
 	}
 
 	firstElem := sliceValue.Index(0)
 	if firstElem.Kind() != reflect.Struct {
-		panic(fmt.Errorf("table slice element must be a struct, provided: %s", firstElem.Kind()))
+		return fmt.Errorf("table slice element must be a struct, provided: %s", firstElem.Kind())
 	}
 
 	table := tablewriter.NewWriter(w)
@@ -107,6 +168,8 @@ func RenderTable(w io.Writer, slice interface{}, opts TableOptions) {
 	}
 
 	table.Render()
+
+	return nil
 }
 
 func columnHeader(tag reflect.StructTag, opts TableOptions) string {

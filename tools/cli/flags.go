@@ -20,7 +20,16 @@
 
 package cli
 
-import "github.com/urfave/cli"
+import (
+	"fmt"
+	"reflect"
+	"strings"
+
+	"go/format"
+
+	"github.com/kr/text"
+	"github.com/urfave/cli"
+)
 
 // Flags used to specify cli command line arguments
 const (
@@ -139,8 +148,8 @@ const (
 	FlagPrintMemoWithAlias                = FlagPrintMemo + ", pme"
 	FlagPrintSearchAttr                   = "print_search_attr"
 	FlagPrintSearchAttrWithAlias          = FlagPrintSearchAttr + ", psa"
-	FlagPrintJSON                         = "print_json"
-	FlagPrintJSONWithAlias                = FlagPrintJSON + ", pjson"
+	FlagPrintJSON                         = "print_json"              // Deprecated: use --format json
+	FlagPrintJSONWithAlias                = FlagPrintJSON + ", pjson" // Deprecated: use --format json
 	FlagDescription                       = "description"
 	FlagDescriptionWithAlias              = FlagDescription + ", desc"
 	FlagOwnerEmail                        = "owner_email"
@@ -288,6 +297,7 @@ const (
 	FlagDynamicConfigValue                = "dynamic_config_value"
 	FlagTransport                         = "transport"
 	FlagTransportWithAlias                = FlagTransport + ", t"
+	FlagFormat                            = "format"
 )
 
 var flagsForExecution = []cli.Flag{
@@ -533,6 +543,26 @@ func getFlagsForTerminate() []cli.Flag {
 	})
 }
 
+func getFormatFlagFor(entity interface{}) cli.Flag {
+	entityType := reflect.TypeOf(entity)
+
+	sb := &strings.Builder{}
+	fmt.Fprintf(sb, "type %s struct{\n", entityType.Name())
+	for i := 0; i < entityType.NumField(); i++ {
+		field := entityType.Field(i)
+		fmt.Fprintf(sb, "  %s %s\n", field.Name, field.Type)
+	}
+	fmt.Fprintf(sb, "}\n")
+
+	formatted, _ := format.Source([]byte(sb.String()))
+	formatted = text.IndentBytes(formatted, []byte("\t| "))
+
+	return cli.StringFlag{
+		Name:  FlagFormat,
+		Usage: "Format [table|json|<template>] (default: table) <template> uses GoLang \"text/template\" syntax for this struct:\n" + string(formatted) + "\n",
+	}
+}
+
 func getCommonFlagsForVisibility() []cli.Flag {
 	return []cli.Flag{
 		cli.BoolFlag{
@@ -557,8 +587,9 @@ func getCommonFlagsForVisibility() []cli.Flag {
 		},
 		cli.BoolFlag{
 			Name:  FlagPrintJSONWithAlias,
-			Usage: "Print in raw json format",
+			Usage: "Print in raw json format (DEPRECATED: instead use --format json)",
 		},
+		getFormatFlagFor(WorkflowRow{}),
 	}
 }
 
